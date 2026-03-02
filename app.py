@@ -531,32 +531,38 @@ class App(ctk.CTk):
     def _download_task(self, courses: list[Course], save_dir: Path):
         from cto51.config import RETRY_TIMES
 
-        all_lessons: list[tuple[Course, object]] = []
+        all_lessons: list[tuple[Course, object, int]] = []  # (course, lesson, lesson_idx)
         ok_count = done = 0
 
         try:
             with BrowserSession(headless=True, cookie_file=self._cookie_path) as sess:
-                # 收集所有课时
+                # 收集所有课时，按课程分组
                 for course in courses:
                     self._gui_queue.put(("log", f"[*] 获取课时：{course.title}"))
-                    for ls in fetch_lessons(sess.page, course):
-                        all_lessons.append((course, ls))
+                    lessons = list(fetch_lessons(sess.page, course))
+                    for idx, ls in enumerate(lessons, 1):
+                        all_lessons.append((course, ls, idx))
 
                 total = len(all_lessons)
                 self._gui_queue.put(("log", f"[*] 共 {total} 课时，开始下载"))
 
-                for idx, (_, lesson) in enumerate(all_lessons, 1):
-                    label = f"{idx:03d}_{sanitize(lesson.title)}"
+                for course, lesson, lesson_idx in all_lessons:
+                    # 为每个课程创建单独目录
+                    course_dir = save_dir / sanitize(course.title)
+                    course_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # 文件名：序号_课时标题
+                    label = f"{lesson_idx:03d}_{sanitize(lesson.title)}"
 
-                    # 断点续传
-                    if list(save_dir.glob(f"{label}*")):
-                        self._gui_queue.put(("log", f"  [跳过] {label}"))
+                    # 断点续传（在课程目录下检查）
+                    if list(course_dir.glob(f"{label}*")):
+                        self._gui_queue.put(("log", f"  [跳过] {course.title}/{label}"))
                         done += 1
                         ok_count += 1
                         self._gui_queue.put(("progress", (done, total, "")))
                         continue
 
-                    self._gui_queue.put(("progress", (done, total, lesson.title)))
+                    self._gui_queue.put(("progress", (done, total, f"{course.title} - {lesson.title}")))
 
                     m3u8_url, headers = None, {}
                     for attempt in range(1, RETRY_TIMES + 1):
@@ -568,16 +574,16 @@ class App(ctk.CTk):
 
                     done += 1
                     if not m3u8_url:
-                        self._gui_queue.put(("lesson_fail", label))
+                        self._gui_queue.put(("lesson_fail", f"{course.title}/{label}"))
                         self._gui_queue.put(("progress", (done, total, "")))
                         continue
 
-                    ok = dl_m3u8(m3u8_url, headers, label, save_dir=save_dir)
+                    ok = dl_m3u8(m3u8_url, headers, label, save_dir=course_dir)
                     if ok:
                         ok_count += 1
-                        self._gui_queue.put(("lesson_done", label))
+                        self._gui_queue.put(("lesson_done", f"{course.title}/{label}"))
                     else:
-                        self._gui_queue.put(("lesson_fail", label))
+                        self._gui_queue.put(("lesson_fail", f"{course.title}/{label}"))
                     self._gui_queue.put(("progress", (done, total, "")))
                     time.sleep(1)
 
