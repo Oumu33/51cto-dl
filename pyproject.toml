@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cto51-dl"
+version = "0.1.0"
+description = "51CTO 课程批量下载工具"
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.42.0",
+    "pillow>=10.0.0",
+]
+
+[project.scripts]
+cto51-dl = "cto51.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cto51*"]

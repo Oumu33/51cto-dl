@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# 构建产物
+dist/
+build/
+*.spec.bak
+
+# 运行时临时文件
+videos/
+*.json
+qr_*.png
+N_m3u8DL-RE.zip
+
+# IDE
+.vscode/
+.idea/
