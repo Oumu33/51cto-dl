@@ -29,6 +29,7 @@ import re
 import tempfile
 import threading
 import time
+import random
 from tkinter import filedialog, messagebox
 import tkinter as tk
 
@@ -585,7 +586,7 @@ class App(ctk.CTk):
                     else:
                         self._gui_queue.put(("lesson_fail", f"{course.title}/{label}"))
                     self._gui_queue.put(("progress", (done, total, "")))
-                    time.sleep(1)
+                    time.sleep(random.uniform(1.5, 4.0))  # 随机延迟避免反爬
 
         except Exception as e:
             self._gui_queue.put(("log", f"[!] 下载出错: {e}"))

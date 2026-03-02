@@ -4,6 +4,7 @@ m3u8 嗅探（网络请求拦截）
 from __future__ import annotations
 
 import time
+import random
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from cto51.config import WAIT_FOR_M3U8
@@ -34,7 +35,7 @@ def capture_m3u8(page, lesson_url: str) -> tuple[str | None, dict]:
     page.on("response", on_response)
     try:
         page.goto(lesson_url, wait_until="domcontentloaded")
-        time.sleep(2)
+        time.sleep(random.uniform(1.5, 3.0))
 
         # 尝试点击播放按钮
         for sel in _PLAY_SELECTORS:
