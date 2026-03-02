@@ -6,11 +6,11 @@ from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH)
 
-# 收集 playwright 和 customtkinter
+# collect playwright and customtkinter
 pw_datas, pw_binaries, pw_hidden = collect_all("playwright")
 ctk_datas, ctk_binaries, ctk_hidden = collect_all("customtkinter")
 
-# 找 Chromium 路径
+# find Chromium path
 import playwright
 pw_dir = Path(playwright.__file__).parent
 
@@ -58,7 +58,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="51CTO下载器",
+    name="51CTO-Downloader",
     debug=False,
     strip=False,
     upx=True,
