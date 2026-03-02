@@ -30,13 +30,11 @@ jobs:
       - name: 下载 N_m3u8DL-RE
         shell: bash
         run: |
-          curl -sL "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest" > release.json
-          url=$(python -c "import json; d=json.load(open('release.json')); print(next((a['browser_download_url'] for a in d['assets'] if 'win-x64' in a['name'] and a['name'].endswith('.zip')), ''))")
-          echo "Downloading: $url"
+          url="https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_win-x64_20251029.zip"
           curl -sL -o N_m3u8DL-RE.zip "$url"
-          unzip -o N_m3u8DL-RE.zip -d n_temp
-          cp n_temp/*/N_m3u8DL-RE*.exe N_m3u8DL-RE.exe || cp n_temp/N_m3u8DL-RE*.exe N_m3u8DL-RE.exe
-          rm -rf N_m3u8DL-RE.zip n_temp release.json
+          unzip -o N_m3u8DL-RE.zip
+          mv N_m3u8DL-RE*.exe N_m3u8DL-RE.exe
+          rm -f N_m3u8DL-RE.zip
           ls -la N_m3u8DL-RE.exe
 
       - name: PyInstaller 打包
