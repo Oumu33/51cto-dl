@@ -5,6 +5,7 @@
 # build.py 会先把 Chromium 装到正确位置再调用此 spec
 
 import sys
+import os
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
@@ -13,15 +14,43 @@ ROOT = Path(SPECPATH)
 # ── 收集 playwright 全部模块 + 数据文件 ──────────────────────────
 pw_datas, pw_binaries, pw_hidden = collect_all("playwright")
 
-# ── 找到 playwright 包里的 Chromium（由 build.py 安装到此处）────
+# ── 找到 playwright 包里的 Chromium ────────────────────────────────
 import playwright as _pw
 _pw_dir = Path(_pw.__file__).parent
-_browsers_src = _pw_dir / ".local-browsers"
 
-if not _browsers_src.exists():
+# 尝试多种可能的浏览器路径
+_possible_paths = [
+    _pw_dir / ".local-browsers",  # PLAYWRIGHT_BROWSERS_PATH=0 时的路径
+    _pw_dir / "driver" / ".local-browsers",  # 另一种可能的路径
+    Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")) if os.environ.get("PLAYWRIGHT_BROWSERS_PATH") not in ("", "0") else None,
+]
+
+# 搜索实际的 Chromium 路径
+_browsers_src = None
+for p in _possible_paths:
+    if p and p.exists():
+        chromium_dirs = list(p.rglob("chromium*"))
+        if chromium_dirs:
+            _browsers_src = p
+            print(f"[*] 找到 Chromium 源路径: {p}")
+            break
+
+# 如果上述路径都没找到，尝试递归搜索整个 playwright 目录
+if not _browsers_src:
+    print("[*] 在预设路径未找到 Chromium，正在搜索...")
+    for chromium_dir in _pw_dir.rglob("chromium*"):
+        if chromium_dir.is_dir() and "chromium" in chromium_dir.name.lower():
+            _browsers_src = chromium_dir.parent
+            print(f"[*] 搜索到 Chromium 路径: {_browsers_src}")
+            break
+
+if not _browsers_src:
     raise SystemExit(
-        "\n[错误] 未找到 Chromium！请先运行：python build.py\n"
-        f"预期路径：{_browsers_src}"
+        f"\n[错误] 未找到 Chromium！\n"
+        f"已搜索的路径：\n"
+        f"  - {_pw_dir / '.local-browsers'}\n"
+        f"  - {_pw_dir / 'driver' / '.local-browsers'}\n"
+        f"请先运行：python build.py 或确保 PLAYWRIGHT_BROWSERS_PATH 环境变量正确"
     )
 
 print(f"[*] 打包 Chromium：{_browsers_src}")

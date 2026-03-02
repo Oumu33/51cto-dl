@@ -6,6 +6,9 @@ on:
       - "v*"          # 打 tag 自动触发，如 git tag v1.0 && git push --tags
   workflow_dispatch:  # 也可以在 GitHub 网页上手动触发
 
+env:
+  PLAYWRIGHT_BROWSERS_PATH: "0"
+
 jobs:
   build:
     runs-on: windows-latest
@@ -28,17 +31,19 @@ jobs:
           python -c "import playwright; print('playwright:', playwright.__version__)"
           python -c "import customtkinter; print('customtkinter:', customtkinter.__version__)"
 
-      - name: 下载 Chromium（打包到 playwright 包目录内）
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: "0"
+      - name: 下载 Chromium
         run: python -m playwright install chromium
+
+      - name: 显示 Playwright 浏览器路径
+        run: |
+          python -c "import playwright; from pathlib import Path; pw_dir = Path(playwright.__file__).parent; print('Playwright dir:', pw_dir); import os; browsers = list(pw_dir.rglob('chromium*')); [print('Found:', b) for b in browsers[:5]]"
 
       - name: 下载 N_m3u8DL-RE
         shell: pwsh
         run: |
           $api = "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest"
           $release = Invoke-RestMethod -Uri $api `
-            -Headers @{ "User-Agent" = "Mozilla/5.0"; "Accept" = "application/vnd.github.v3+json" }
+            -Headers @{ "User-Agent": "Mozilla/5.0"; "Accept": "application/vnd.github.v3+json" }
           $asset = $release.assets | Where-Object { $_.name -like "*win-x64*.zip" } | Select-Object -First 1
           Write-Host "下载 $($asset.name) ..."
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "N_m3u8DL-RE.zip"
