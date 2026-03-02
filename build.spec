@@ -1,5 +1,5 @@
 # build.spec
-# PyInstaller 打包配置 —— 含 Chromium，双击即用
+# PyInstaller 6.x 打包配置 —— 含 Chromium，双击即用
 #
 # 执行方式：python build.py  （不要直接 pyinstaller build.spec）
 # build.py 会先把 Chromium 装到正确位置再调用此 spec
@@ -36,7 +36,7 @@ if not _n_exe.exists():
 print(f"[*] 打包 N_m3u8DL-RE：{_n_exe}")
 
 # ── 收集 customtkinter 资源 ───────────────────────────────────────
-ctk_datas = collect_data_files("customtkinter", include_py_files=True)
+ctk_datas, ctk_binaries, ctk_hidden = collect_all("customtkinter")
 
 # ── 所有 datas ────────────────────────────────────────────────────
 all_datas = (
@@ -50,17 +50,15 @@ all_datas = (
     ]
 )
 
-block_cipher = None
-
 a = Analysis(
     [str(ROOT / "app.py")],
     pathex=[str(ROOT)],
-    binaries=pw_binaries + [
+    binaries=pw_binaries + ctk_binaries + [
         # N_m3u8DL-RE 打包到 MEIPASS 根目录，config.py 运行时直接引用
         (str(_n_exe), "."),
     ],
     datas=all_datas,
-    hiddenimports=pw_hidden + [
+    hiddenimports=pw_hidden + ctk_hidden + [
         "cto51",
         "cto51.config",
         "cto51.utils",
@@ -80,17 +78,15 @@ a = Analysis(
     hookspath=[],
     runtime_hooks=[],
     excludes=["matplotlib", "numpy", "pandas", "scipy"],
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
     name="51CTO下载器",

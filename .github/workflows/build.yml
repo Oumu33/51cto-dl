@@ -22,6 +22,12 @@ jobs:
       - name: 安装 Python 依赖
         run: pip install -r requirements.txt
 
+      - name: 显示关键依赖版本
+        run: |
+          python -m PyInstaller --version
+          python -c "import playwright; print('playwright:', playwright.__version__)"
+          python -c "import customtkinter; print('customtkinter:', customtkinter.__version__)"
+
       - name: 下载 Chromium（打包到 playwright 包目录内）
         env:
           PLAYWRIGHT_BROWSERS_PATH: "0"
@@ -40,10 +46,10 @@ jobs:
           $exe = Get-ChildItem -Path "n_temp" -Filter "N_m3u8DL-RE*.exe" -Recurse | Select-Object -First 1
           Copy-Item $exe.FullName "N_m3u8DL-RE.exe"
           Remove-Item "N_m3u8DL-RE.zip", "n_temp" -Recurse -Force
-          Write-Host "完成: $(Get-Item N_m3u8DL-RE.exe).Length bytes"
+          Write-Host "完成: $((Get-Item N_m3u8DL-RE.exe).Length) bytes"
 
       - name: PyInstaller 打包
-        run: python -m PyInstaller build.spec --clean --noconfirm
+        run: python -m PyInstaller build.spec --clean --noconfirm --log-level WARN
 
       - name: 查看输出
         run: dir dist
