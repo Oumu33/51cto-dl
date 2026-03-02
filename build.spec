@@ -1,89 +1,50 @@
-# build.spec
-# PyInstaller 6.x 打包配置 —— 含 Chromium，双击即用
-
-import sys
+# build.spec - PyInstaller 6.x 打包配置
 import os
+import sys
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH)
 
-# ── 收集 playwright 全部模块 + 数据文件 ──────────────────────────
+# 收集 playwright 和 customtkinter
 pw_datas, pw_binaries, pw_hidden = collect_all("playwright")
-
-# ── 找到 Chromium 路径 ────────────────────────────────────────────
-# 优先使用环境变量指定的路径
-_browsers_src = None
-
-env_path = os.environ.get("CHROMIUM_PATH", "")
-if env_path and Path(env_path).exists():
-    _browsers_src = Path(env_path)
-    print(f"[*] 使用环境变量 CHROMIUM_PATH: {_browsers_src}")
-else:
-    # 尝试在 playwright 包目录中搜索
-    import playwright as _pw
-    _pw_dir = Path(_pw.__file__).parent
-    
-    # 递归搜索 chromium 目录
-    for chromium_dir in _pw_dir.rglob("chromium*"):
-        if chromium_dir.is_dir():
-            _browsers_src = chromium_dir.parent
-            print(f"[*] 搜索到 Chromium 路径: {_browsers_src}")
-            break
-
-if not _browsers_src:
-    raise SystemExit(
-        "\n[错误] 未找到 Chromium！\n"
-        "请设置 CHROMIUM_PATH 环境变量或确保 Chromium 已安装到 playwright 包目录"
-    )
-
-print(f"[*] 打包 Chromium：{_browsers_src}")
-
-# ── N_m3u8DL-RE.exe ───────────────────────────────────────────────
-_n_exe = ROOT / "N_m3u8DL-RE.exe"
-if not _n_exe.exists():
-    raise SystemExit(
-        "\n[错误] 未找到 N_m3u8DL-RE.exe！\n"
-        f"预期路径：{_n_exe}"
-    )
-print(f"[*] 打包 N_m3u8DL-RE：{_n_exe}")
-
-# ── 收集 customtkinter 资源 ───────────────────────────────────────
 ctk_datas, ctk_binaries, ctk_hidden = collect_all("customtkinter")
 
-# ── 所有 datas ────────────────────────────────────────────────────
-all_datas = (
-    pw_datas
-    + ctk_datas
-    + [
-        (str(ROOT / "cto51"), "cto51"),
-        (str(_browsers_src), "pw-browsers"),
-    ]
-)
+# 找 Chromium 路径 (PLAYWRIGHT_BROWSERS_PATH=0 时在 playwright 包目录下)
+import playwright
+pw_dir = Path(playwright.__file__).parent
+
+browsers_src = None
+for p in pw_dir.rglob("chromium*"):
+    if p.is_dir():
+        browsers_src = p.parent
+        print(f"[*] 找到 Chromium: {p}")
+        break
+
+if not browsers_src:
+    raise SystemExit(f"[错误] 未找到 Chromium！搜索路径: {pw_dir}")
+
+# N_m3u8DL-RE
+n_exe = ROOT / "N_m3u8DL-RE.exe"
+if not n_exe.exists():
+    raise SystemExit(f"[错误] 未找到 N_m3u8DL-RE.exe: {n_exe}")
+
+print(f"[*] Chromium 路径: {browsers_src}")
+print(f"[*] N_m3u8DL-RE: {n_exe}")
 
 a = Analysis(
     [str(ROOT / "app.py")],
     pathex=[str(ROOT)],
-    binaries=pw_binaries + ctk_binaries + [
-        (str(_n_exe), "."),
+    binaries=pw_binaries + ctk_binaries + [(str(n_exe), ".")],
+    datas=pw_datas + ctk_datas + [
+        (str(ROOT / "cto51"), "cto51"),
+        (str(browsers_src), "pw-browsers"),
     ],
-    datas=all_datas,
     hiddenimports=pw_hidden + ctk_hidden + [
-        "cto51",
-        "cto51.config",
-        "cto51.utils",
-        "cto51.browser",
-        "cto51.auth",
-        "cto51.courses",
-        "cto51.capture",
-        "cto51.download",
-        "customtkinter",
-        "PIL",
-        "PIL.Image",
-        "PIL.ImageTk",
-        "tkinter",
-        "tkinter.filedialog",
-        "tkinter.messagebox",
+        "cto51", "cto51.config", "cto51.utils", "cto51.browser",
+        "cto51.auth", "cto51.courses", "cto51.capture", "cto51.download",
+        "customtkinter", "PIL", "PIL.Image", "PIL.ImageTk",
+        "tkinter", "tkinter.filedialog", "tkinter.messagebox",
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -91,10 +52,8 @@ a = Analysis(
     noarchive=False,
 )
 
-pyz = PYZ(a.pure)
-
 exe = EXE(
-    pyz,
+    PYZ(a.pure),
     a.scripts,
     a.binaries,
     a.datas,
@@ -105,5 +64,4 @@ exe = EXE(
     upx=True,
     upx_exclude=["vcruntime140.dll", "python*.dll"],
     console=False,
-    runtime_tmpdir=None,
 )
