@@ -25,37 +25,7 @@ jobs:
       - name: 准备构建环境
         env:
           PLAYWRIGHT_BROWSERS_PATH: "0"
-        run: |
-          python -m playwright install chromium
-          python -c "
-          import json
-          import urllib.request
-          import zipfile
-          from pathlib import Path
-          
-          # 下载 N_m3u8DL-RE
-          print('获取 N_m3u8DL-RE 最新版本...')
-          api = 'https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest'
-          req = urllib.request.Request(api, headers={'User-Agent': 'Mozilla/5.0'})
-          with urllib.request.urlopen(req, timeout=30) as r:
-              data = json.load(r)
-          
-          asset = next((a for a in data['assets'] if 'win-x64' in a['name'] and a['name'].endswith('.zip')), None)
-          if not asset:
-              raise SystemExit('未找到 Windows x64 资产')
-          
-          print(f'下载 {asset[\"name\"]}...')
-          urllib.request.urlretrieve(asset['browser_download_url'], 'N_m3u8DL-RE.zip')
-          
-          print('解压...')
-          with zipfile.ZipFile('N_m3u8DL-RE.zip') as z:
-              for name in z.namelist():
-                  if name.endswith('.exe') and 'N_m3u8DL-RE' in name:
-                      Path('N_m3u8DL-RE.exe').write_bytes(z.read(name))
-                      break
-          Path('N_m3u8DL-RE.zip').unlink()
-          print('N_m3u8DL-RE 准备完成')
-          "
+        run: python download_deps.py
 
       - name: PyInstaller 打包
         env:
