@@ -28,29 +28,19 @@ jobs:
         run: python -m playwright install chromium
 
       - name: 下载 N_m3u8DL-RE
-        shell: python
+        shell: pwsh
         run: |
-          import json, urllib.request, zipfile, sys
-          from pathlib import Path
-
-          api = "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest"
-          req = urllib.request.Request(api, headers={"User-Agent": "Mozilla/5.0"})
-          with urllib.request.urlopen(req) as r:
-              data = json.load(r)
-
-          asset = next(
-              a for a in data["assets"]
-              if "win-x64" in a["name"] and a["name"].endswith(".zip")
-          )
-          print(f"下载 {asset['name']}...")
-          urllib.request.urlretrieve(asset["browser_download_url"], "N_m3u8DL-RE.zip")
-
-          with zipfile.ZipFile("N_m3u8DL-RE.zip") as z:
-              for name in z.namelist():
-                  if name.endswith(".exe") and "N_m3u8DL-RE" in name:
-                      Path("N_m3u8DL-RE.exe").write_bytes(z.read(name))
-                      print(f"解压完成：N_m3u8DL-RE.exe")
-                      break
+          $api = "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest"
+          $release = Invoke-RestMethod -Uri $api `
+            -Headers @{ "User-Agent" = "Mozilla/5.0"; "Accept" = "application/vnd.github.v3+json" }
+          $asset = $release.assets | Where-Object { $_.name -like "*win-x64*.zip" } | Select-Object -First 1
+          Write-Host "下载 $($asset.name) ..."
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "N_m3u8DL-RE.zip"
+          Expand-Archive -Path "N_m3u8DL-RE.zip" -DestinationPath "n_temp" -Force
+          $exe = Get-ChildItem -Path "n_temp" -Filter "N_m3u8DL-RE*.exe" -Recurse | Select-Object -First 1
+          Copy-Item $exe.FullName "N_m3u8DL-RE.exe"
+          Remove-Item "N_m3u8DL-RE.zip", "n_temp" -Recurse -Force
+          Write-Host "完成: $(Get-Item N_m3u8DL-RE.exe).Length bytes"
 
       - name: PyInstaller 打包
         run: python -m PyInstaller build.spec --clean --noconfirm
