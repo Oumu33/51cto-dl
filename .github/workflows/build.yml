@@ -3,8 +3,8 @@ name: Build EXE
 on:
   push:
     tags:
-      - "v*"          # 打 tag 自动触发，如 git tag v1.0 && git push --tags
-  workflow_dispatch:  # 也可以在 GitHub 网页上手动触发
+      - "v*"
+  workflow_dispatch:
 
 env:
   PLAYWRIGHT_BROWSERS_PATH: "0"
@@ -36,14 +36,17 @@ jobs:
 
       - name: 显示 Playwright 浏览器路径
         run: |
-          python -c "import playwright; from pathlib import Path; pw_dir = Path(playwright.__file__).parent; print('Playwright dir:', pw_dir); import os; browsers = list(pw_dir.rglob('chromium*')); [print('Found:', b) for b in browsers[:5]]"
+          python -c "import playwright; from pathlib import Path; pw_dir = Path(playwright.__file__).parent; print('Playwright dir:', pw_dir); browsers = list(pw_dir.rglob('chromium*')); [print('Found:', b) for b in browsers[:5]]"
 
       - name: 下载 N_m3u8DL-RE
         shell: pwsh
         run: |
           $api = "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest"
-          $release = Invoke-RestMethod -Uri $api `
-            -Headers @{ "User-Agent": "Mozilla/5.0"; "Accept": "application/vnd.github.v3+json" }
+          $headers = @{
+            "User-Agent" = "Mozilla/5.0"
+            "Accept" = "application/vnd.github.v3+json"
+          }
+          $release = Invoke-RestMethod -Uri $api -Headers $headers
           $asset = $release.assets | Where-Object { $_.name -like "*win-x64*.zip" } | Select-Object -First 1
           Write-Host "下载 $($asset.name) ..."
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "N_m3u8DL-RE.zip"
@@ -59,7 +62,6 @@ jobs:
       - name: 查看输出
         run: dir dist
 
-      # ── 上传到 GitHub Release（打 tag 时自动创建）─────────────────
       - name: 发布 Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -72,7 +74,6 @@ jobs:
             2. 双击运行，无需安装任何软件
             3. 扫码登录 → 选择课程 → 开始下载
 
-      # ── 手动触发时上传为 Artifact（不创建 Release）───────────────
       - name: 上传 Artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
