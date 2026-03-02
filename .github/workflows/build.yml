@@ -29,16 +29,8 @@ jobs:
 
       - name: 下载 N_m3u8DL-RE
         run: |
-          # 使用 ghproxy 加速
-          $proxy = "https://mirror.ghproxy.com/"
           $url = "https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_win-x64_20251029.zip"
-          Write-Host "Downloading from $proxy$url"
-          try {
-            Invoke-WebRequest -Uri "$proxy$url" -OutFile "N_m3u8DL-RE.zip"
-          } catch {
-            Write-Host "Proxy failed, trying direct download..."
-            Invoke-WebRequest -Uri $url -OutFile "N_m3u8DL-RE.zip"
-          }
+          Invoke-WebRequest -Uri $url -OutFile "N_m3u8DL-RE.zip"
           Expand-Archive -Path "N_m3u8DL-RE.zip" -DestinationPath "." -Force
           Remove-Item "N_m3u8DL-RE.zip"
           Get-Item "N_m3u8DL-RE.exe"
@@ -54,19 +46,14 @@ jobs:
       - name: 发布 Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: dist/51CTO下载器.exe
-          name: "51CTO 下载器 ${{ github.ref_name }}"
-          body: |
-            ## 使用方法
-            1. 下载 `51CTO下载器.exe`
-            2. 双击运行，无需安装任何软件
-            3. 扫码登录 → 选择课程 → 开始下载
+          files: dist/*.exe
 
       - name: 上传 Artifact
-        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: 51CTO下载器
-          path: dist/51CTO下载器.exe
+          name: 51CTO-Downloader
+          path: dist/*.exe
           retention-days: 7
