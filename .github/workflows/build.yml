@@ -6,9 +6,6 @@ on:
       - "v*"
   workflow_dispatch:
 
-env:
-  PLAYWRIGHT_BROWSERS_PATH: "0"
-
 jobs:
   build:
     runs-on: windows-latest
@@ -31,12 +28,14 @@ jobs:
           python -c "import playwright; print('playwright:', playwright.__version__)"
           python -c "import customtkinter; print('customtkinter:', customtkinter.__version__)"
 
-      - name: 下载 Chromium
-        run: python -m playwright install chromium
-
-      - name: 显示 Playwright 浏览器路径
+      - name: 下载 Chromium 并获取路径
+        id: chromium
         run: |
-          python -c "import playwright; from pathlib import Path; pw_dir = Path(playwright.__file__).parent; print('Playwright dir:', pw_dir); browsers = list(pw_dir.rglob('chromium*')); [print('Found:', b) for b in browsers[:5]]"
+          $env:PLAYWRIGHT_BROWSERS_PATH = "0"
+          python -m playwright install chromium
+          $path = python -c "import playwright; from pathlib import Path; pw_dir = Path(playwright.__file__).parent; browsers = list(pw_dir.rglob('chromium*')); print(browsers[0].parent if browsers else '')"
+          echo "chromium_path=$path" >> $env:GITHUB_OUTPUT
+          Write-Host "Chromium path: $path"
 
       - name: 下载 N_m3u8DL-RE
         shell: pwsh
@@ -57,6 +56,8 @@ jobs:
           Write-Host "完成: $((Get-Item N_m3u8DL-RE.exe).Length) bytes"
 
       - name: PyInstaller 打包
+        env:
+          CHROMIUM_PATH: ${{ steps.chromium.outputs.chromium_path }}
         run: python -m PyInstaller build.spec --clean --noconfirm --log-level WARN
 
       - name: 查看输出
