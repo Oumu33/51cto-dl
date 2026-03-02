@@ -28,14 +28,15 @@ jobs:
         run: python -m playwright install chromium
 
       - name: 下载 N_m3u8DL-RE
-        shell: bash
         run: |
-          url="https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_win-x64_20251029.zip"
-          curl -sL -o N_m3u8DL-RE.zip "$url"
-          unzip -o N_m3u8DL-RE.zip
-          mv N_m3u8DL-RE*.exe N_m3u8DL-RE.exe
-          rm -f N_m3u8DL-RE.zip
-          ls -la N_m3u8DL-RE.exe
+          $url = "https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_win-x64_20251029.zip"
+          Write-Host "Downloading from $url"
+          Invoke-WebRequest -Uri $url -OutFile "N_m3u8DL-RE.zip"
+          Expand-Archive -Path "N_m3u8DL-RE.zip" -DestinationPath "." -Force
+          $exe = Get-ChildItem -Filter "N_m3u8DL-RE*.exe" | Select-Object -First 1
+          Rename-Item $exe.FullName "N_m3u8DL-RE.exe"
+          Remove-Item "N_m3u8DL-RE.zip"
+          Get-Item "N_m3u8DL-RE.exe"
 
       - name: PyInstaller 打包
         env:
