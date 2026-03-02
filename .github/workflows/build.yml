@@ -29,12 +29,17 @@ jobs:
 
       - name: 下载 N_m3u8DL-RE
         run: |
+          # 使用 ghproxy 加速
+          $proxy = "https://mirror.ghproxy.com/"
           $url = "https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.5.1-beta/N_m3u8DL-RE_v0.5.1-beta_win-x64_20251029.zip"
-          Write-Host "Downloading from $url"
-          Invoke-WebRequest -Uri $url -OutFile "N_m3u8DL-RE.zip"
+          Write-Host "Downloading from $proxy$url"
+          try {
+            Invoke-WebRequest -Uri "$proxy$url" -OutFile "N_m3u8DL-RE.zip"
+          } catch {
+            Write-Host "Proxy failed, trying direct download..."
+            Invoke-WebRequest -Uri $url -OutFile "N_m3u8DL-RE.zip"
+          }
           Expand-Archive -Path "N_m3u8DL-RE.zip" -DestinationPath "." -Force
-          $exe = Get-ChildItem -Filter "N_m3u8DL-RE*.exe" | Select-Object -First 1
-          Rename-Item $exe.FullName "N_m3u8DL-RE.exe"
           Remove-Item "N_m3u8DL-RE.zip"
           Get-Item "N_m3u8DL-RE.exe"
 
