@@ -110,24 +110,33 @@ def qr_login(sess, save_path: Path) -> bool:
     while time.time() < deadline:
         time.sleep(2)
 
-        # 检测登录成功
-        if any(page.query_selector(s) for s in _LOGIN_SUCCESS_SELECTORS):
-            break
-        if "login" not in page.url and page.url != URL_LOGIN:
-            break
+        # 检测登录成功（使用 try-except 处理页面跳转导致的上下文销毁）
+        try:
+            if any(page.query_selector(s) for s in _LOGIN_SUCCESS_SELECTORS):
+                break
+            if "login" not in page.url and page.url != URL_LOGIN:
+                break
+        except Exception:
+            # 页面可能正在跳转，等待后重试
+            time.sleep(1)
+            continue
 
         # 检测二维码过期，自动刷新
-        if _is_qr_expired(page):
-            refresh = _find_first(page, _QR_REFRESH_SELECTORS)
-            if refresh:
-                try:
-                    refresh.click()
-                except Exception:
-                    page.evaluate("() => document.querySelector('.wx_10s a, a[onclick*=\"getQrImg\"]')?.click()")
-                time.sleep(2)
-                snap_qr()
-                print("\n[*] 二维码已刷新，请重新扫码：")
-                show_qr(qr_img_path)
+        try:
+            if _is_qr_expired(page):
+                refresh = _find_first(page, _QR_REFRESH_SELECTORS)
+                if refresh:
+                    try:
+                        refresh.click()
+                    except Exception:
+                        page.evaluate("() => document.querySelector('.wx_10s a, a[onclick*=\"getQrImg\"]')?.click()")
+                    time.sleep(2)
+                    snap_qr()
+                    print("\n[*] 二维码已刷新，请重新扫码：")
+                    show_qr(qr_img_path)
+        except Exception:
+            # 页面跳转中，忽略错误
+            pass
 
         remaining = int(deadline - time.time())
         print(f"\r[*] 等待扫码… 剩余 {remaining:3d}s", end="", flush=True)
@@ -136,6 +145,32 @@ def qr_login(sess, save_path: Path) -> bool:
         return False
 
     print("\n[*] 扫码成功！")
+
+    # 等待页面稳定（关闭可能存在的弹窗）
+    time.sleep(1)
+    try:
+        # 尝试关闭登录成功后的弹窗
+        for sel in [".close", ".close-btn", "[class*='close']", ".modal-close"]:
+            el = page.query_selector(sel)
+            if el and el.is_visible():
+                el.click()
+                time.sleep(0.3)
+    except Exception:
+        pass
+
+    # 登录后是局部刷新 DOM，不是页面跳转
+    # 等待用户元素出现（而不是 networkidle）
+    try:
+        for sel in _LOGIN_SUCCESS_SELECTORS:
+            try:
+                page.wait_for_selector(sel, timeout=5000, state="visible")
+                break
+            except PlaywrightTimeout:
+                continue
+    except Exception:
+        pass
+
+    time.sleep(1)
     save_cookies(sess.context, save_path)
 
     try:
