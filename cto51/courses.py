@@ -67,13 +67,25 @@ def fetch_purchased(page) -> list[Course]:
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
     print(f"[*] 加载已购课程页：{URL_MY_COURSES}")
-    page.goto(URL_MY_COURSES, wait_until="domcontentloaded")
-
-    # 等待页面基本渲染
-    time.sleep(2)
+    
+    try:
+        page.goto(URL_MY_COURSES, wait_until="domcontentloaded", timeout=60000)
+    except PlaywrightTimeout:
+        print("[!] 页面加载超时，继续尝试...")
+    
+    # 等待页面基本渲染（增加等待时间）
+    time.sleep(5)
 
     # 关闭可能存在的弹窗
     _close_popups(page)
+    
+    # 等待网络请求完成
+    try:
+        page.wait_for_load_state("networkidle", timeout=15000)
+    except Exception:
+        pass
+    
+    time.sleep(2)
 
     # 等待课程元素出现（局部刷新场景，不用 networkidle）
     _COURSE_SELECTORS = [
@@ -102,9 +114,24 @@ def fetch_purchased(page) -> list[Course]:
         # 再次尝试关闭弹窗
         _close_popups(page)
 
-    # 检查是否被重定向到登录页
-    if "login" in page.url or not page.url.startswith("https://edu.51cto.com"):
-        print("[!] 被重定向到登录页，cookie 可能已失效")
+    # 检查页面实际内容
+    page_content = page.evaluate("""() => {
+        return {
+            url: window.location.href,
+            title: document.title,
+            bodyText: document.body.innerText.slice(0, 200)
+        };
+    }""")
+    print(f"[*] 页面URL: {page_content['url']}")
+    print(f"[*] 页面标题: {page_content['title']}")
+    
+    # 检查是否被重定向到登录页或安全验证页
+    if "login" in page.url or "Security" in page_content['title'] or "验证" in page_content['bodyText']:
+        print("[!] 被重定向或需要安全验证，cookie 可能已失效")
+        return []
+    
+    if not page.url.startswith("https://edu.51cto.com"):
+        print(f"[!] 被重定向到: {page.url}")
         return []
 
     # 加强懒加载处理：多滚动几次
