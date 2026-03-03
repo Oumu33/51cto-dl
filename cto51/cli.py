@@ -149,7 +149,7 @@ def main():
     # ── 登录模式 ──────────────────────────────────────────────────
     if args.login:
         print(f"cto51-dl v{__version__} — 扫码登录")
-        with BrowserSession(headless=False, cookie_file=None) as sess:
+        with BrowserSession(headless=True, cookie_file=None) as sess:
             ok = qr_login(sess, cookie_path)
         if ok:
             print(f"\n登录成功！Cookie 保存于 {cookie_path}")

@@ -29,12 +29,35 @@ class BrowserSession:
         self._pw = sync_playwright().start()
         self._browser = self._pw.chromium.launch(
             headless=self.headless,
-            args=["--disable-blink-features=AutomationControlled"],
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--window-size=1920,1080",
+                "--start-maximized",
+            ],
         )
         self.context = self._browser.new_context(
             user_agent=USER_AGENT,
             viewport={"width": 1920, "height": 1080},
+            locale="zh-CN",
+            timezone_id="Asia/Shanghai",
+            # 添加更多浏览器特征
+            color_scheme="light",
+            has_touch=False,
+            is_mobile=False,
+            java_script_enabled=True,
         )
+        # 注入脚本隐藏自动化特征
+        self.context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+            window.chrome = { runtime: {} };
+        """)
+
         if self.cookie_file and self.cookie_file.exists():
             cookies = load_cookies(self.cookie_file)
             self.context.add_cookies(cookies)

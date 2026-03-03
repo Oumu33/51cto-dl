@@ -68,31 +68,59 @@ def qr_login(sess, save_path: Path) -> bool:
     返回 True 表示登录成功。
     """
     page = sess.page
-    qr_img_path = Path(str(save_path.parent / "cto51_qr.png"))
+    # 二维码保存到固定位置，方便用户扫描
+    qr_img_path = Path("/home/ubuntu/51cto_downloader/qrcode.png")
 
     print("[*] 打开登录页…")
-    page.goto(URL_LOGIN, wait_until="networkidle")
+    try:
+        page.goto(URL_LOGIN, wait_until="domcontentloaded", timeout=60000)
+    except PlaywrightTimeout:
+        # 即使超时也继续，页面可能已部分加载
+        print("[!] 页面加载较慢，继续尝试...")
+    except Exception as e:
+        print(f"[!] 页面加载异常: {e}")
+
+    # 等待页面稳定
+    time.sleep(3)
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except Exception:
+        pass  # 忽略 networkidle 超时
     time.sleep(2)
 
     # 1. 用 JS 点击触发登录弹窗（元素不可见，不能用 playwright click）
-    page.evaluate(_OPEN_LOGIN_JS)
-    time.sleep(2)   # 等弹窗动画 + 二维码加载
+    try:
+        page.evaluate(_OPEN_LOGIN_JS)
+    except Exception as e:
+        print(f"[!] 触发登录弹窗失败: {e}")
+    time.sleep(3)   # 等弹窗动画 + 二维码加载
 
-    # 2. 截取二维码图片
+    # 2. 截取二维码图片（带重试）
     def snap_qr() -> bool:
-        el = _find_first(page, _QR_IMG_SELECTORS)
-        if el:
+        for attempt in range(5):
             try:
-                el.screenshot(path=str(qr_img_path))
-                return True
-            except Exception:
-                pass
-        # 找不到精确元素，截整个登录框
-        box = page.query_selector("#login-wechat, #login-base, .loginBord")
-        if box:
-            box.screenshot(path=str(qr_img_path))
-        else:
-            page.screenshot(path=str(qr_img_path), clip={"x": 0, "y": 0, "width": 600, "height": 700})
+                time.sleep(1)  # 每次重试前等待
+                el = _find_first(page, _QR_IMG_SELECTORS)
+                if el:
+                    try:
+                        el.screenshot(path=str(qr_img_path))
+                        return True
+                    except Exception:
+                        continue
+                # 找不到精确元素，截整个登录框
+                box = page.query_selector("#login-wechat, #login-base, .loginBord")
+                if box:
+                    box.screenshot(path=str(qr_img_path))
+                    return True
+                else:
+                    page.screenshot(path=str(qr_img_path), clip={"x": 0, "y": 0, "width": 600, "height": 700})
+                    return True
+            except Exception as e:
+                if attempt < 4:
+                    print(f"[!] 截取二维码失败(重试 {attempt+1}/5): {e}")
+                    time.sleep(2)
+                else:
+                    print(f"[!] 截取二维码最终失败: {e}")
         return False
 
     found = snap_qr()

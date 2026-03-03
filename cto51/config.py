@@ -32,7 +32,7 @@ RETRY_TIMES = 3
 # 51CTO 各页面 URL
 URL_HOME = "https://edu.51cto.com"
 URL_LOGIN = "https://edu.51cto.com/index.php?do=login"
-URL_MY_COURSES = "https://edu.51cto.com/center/user/index/type/buy"
+URL_MY_COURSES = "https://edu.51cto.com/center/course/user/get-study-course"
 URL_COURSE = "https://edu.51cto.com/course/{course_id}.html"
 
 # 浏览器 User-Agent

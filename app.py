@@ -466,8 +466,12 @@ class App(ctk.CTk):
                     _is_qr_expired, _find_first, QR_TIMEOUT,
                 )
                 page = sess.page
-                page.goto(URL_LOGIN, wait_until="networkidle")
-                time.sleep(2)
+                try:
+                    page.goto(URL_LOGIN, wait_until="domcontentloaded", timeout=60000)
+                except Exception:
+                    # 即使超时也继续，页面可能已部分加载
+                    pass
+                time.sleep(3)
                 # JS 点击触发登录弹窗（元素不可见，不能用 playwright click）
                 page.evaluate(_OPEN_LOGIN_JS)
                 time.sleep(2)
