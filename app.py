@@ -449,11 +449,17 @@ class App(ctk.CTk):
             return
         try:
             with BrowserSession(headless=True, cookie_file=self._cookie_path) as s:
-                s.page.goto("https://edu.51cto.com", wait_until="domcontentloaded")
-                time.sleep(2)
+                s.page.goto("https://edu.51cto.com", wait_until="domcontentloaded", timeout=60000)
+                time.sleep(3)
+                # 等待页面稳定
+                try:
+                    s.page.wait_for_load_state("networkidle", timeout=10000)
+                except Exception:
+                    pass
+                time.sleep(1)
                 self._gui_queue.put(("login_status", s.is_logged_in()))
-        except Exception:
-            pass
+        except Exception as e:
+            self._gui_queue.put(("log", f"[!] 检查登录状态出错: {e}"))
 
     def _login_task(self):
         qr_path = Path(tempfile.gettempdir()) / "cto51_qr.png"
@@ -484,11 +490,14 @@ class App(ctk.CTk):
                             return
                         except Exception:
                             pass
-                    box = page.query_selector("#login-wechat, #login-base, .loginBord")
-                    if box:
-                        box.screenshot(path=str(qr_path))
-                    else:
-                        page.screenshot(path=str(qr_path))
+                    try:
+                        box = page.query_selector("#login-wechat, #login-base, .loginBord")
+                        if box:
+                            box.screenshot(path=str(qr_path))
+                        else:
+                            page.screenshot(path=str(qr_path))
+                    except Exception:
+                        pass
 
                 snap_qr()
                 self._gui_queue.put(("show_qr", qr_path))
@@ -497,21 +506,29 @@ class App(ctk.CTk):
                 deadline = time.time() + QR_TIMEOUT
                 while time.time() < deadline:
                     time.sleep(2)
-                    if any(page.query_selector(s) for s in _LOGIN_SUCCESS_SELECTORS):
-                        break
-                    if "login" not in page.url and page.url != URL_LOGIN:
-                        break
-                    if _is_qr_expired(page):
-                        refresh = _find_first(page, _QR_REFRESH_SELECTORS)
-                        if refresh:
-                            try:
-                                refresh.click()
-                            except Exception:
-                                page.evaluate("() => document.querySelector('.wx_10s a')?.click()")
-                        time.sleep(2)
-                        snap_qr()
-                        self._gui_queue.put(("show_qr", qr_path))
-                        self._gui_queue.put(("qr_status", ("二维码已刷新，请重扫", WARN)))
+                    # 检测登录成功（包裹 try/except 应对页面跳转导致的上下文销毁）
+                    try:
+                        if any(page.query_selector(s) for s in _LOGIN_SUCCESS_SELECTORS):
+                            break
+                        if "login" not in page.url and page.url != URL_LOGIN:
+                            break
+                    except Exception:
+                        time.sleep(1)
+                        continue
+                    try:
+                        if _is_qr_expired(page):
+                            refresh = _find_first(page, _QR_REFRESH_SELECTORS)
+                            if refresh:
+                                try:
+                                    refresh.click()
+                                except Exception:
+                                    page.evaluate("() => document.querySelector('.wx_10s a')?.click()")
+                            time.sleep(2)
+                            snap_qr()
+                            self._gui_queue.put(("show_qr", qr_path))
+                            self._gui_queue.put(("qr_status", ("二维码已刷新，请重扫", WARN)))
+                    except Exception:
+                        pass
                     remaining = int(deadline - time.time())
                     self._gui_queue.put(("qr_status", (f"等待扫码… 剩余 {remaining}s", FG_DIM)))
                 else:

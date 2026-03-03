@@ -171,9 +171,18 @@ def main():
     with BrowserSession(headless=True, cookie_file=cookie_path) as sess:
         page = sess.page
 
-        # 验证 cookie 有效性
-        page.goto("https://edu.51cto.com", wait_until="domcontentloaded")
+        # 验证 cookie 有效性（等待页面完全稳定后再检测，兼容 Windows 跳转时序）
+        try:
+            page.goto("https://edu.51cto.com", wait_until="domcontentloaded", timeout=60000)
+        except Exception:
+            pass
+        time.sleep(3)
+        try:
+            page.wait_for_load_state("networkidle", timeout=10000)
+        except Exception:
+            pass
         time.sleep(2)
+
         if not sess.is_logged_in():
             print("[!] Cookie 已失效，请重新登录：")
             print("      cto51-dl --login")

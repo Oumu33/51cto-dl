@@ -175,6 +175,11 @@ def qr_login(sess, save_path: Path) -> bool:
     print("\n[*] 扫码成功！")
 
     # 等待页面稳定（关闭可能存在的弹窗）
+    time.sleep(2)
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except Exception:
+        pass
     time.sleep(1)
     try:
         # 尝试关闭登录成功后的弹窗

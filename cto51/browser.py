@@ -3,6 +3,7 @@ Playwright 浏览器生命周期管理（上下文管理器）
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 
@@ -78,6 +79,7 @@ class BrowserSession:
         """
         检测当前页面是否处于已登录状态。
         用多个可能的选择器探测用户元素。
+        带重试以兼容 Windows 上页面跳转时序问题。
         """
         selectors = [
             ".user-info",
@@ -87,4 +89,10 @@ class BrowserSession:
             "[class*='user-head']",
             "a[href*='logout']",
         ]
-        return any(self.page.query_selector(s) for s in selectors)
+        for attempt in range(3):
+            try:
+                return any(self.page.query_selector(s) for s in selectors)
+            except Exception:
+                if attempt < 2:
+                    time.sleep(1)
+        return False
