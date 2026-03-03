@@ -292,6 +292,8 @@ def fetch_lessons(page, course: Course) -> list[Lesson]:
         const items = [];
         const selectors = [
             'a[href*="/lesson/"]',
+            'a[href*="lesson/index"]',
+            'a[href*="lesson?id"]',
             '.lesson-item a',
             '[class*="lesson"] a',
             '.course-list li a',
